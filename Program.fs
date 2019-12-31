@@ -21,6 +21,11 @@ let (>=>) switch1 switch2 =
 let switch f x =
     f x |> Success
 
+let map oneTrackFunc twoTrackInput =
+    match twoTrackInput with
+    | Success s -> Success (oneTrackFunc s)
+    | Failure f -> Failure f
+
 type Request = {name: string; email: string}
 
 let validate1 input =
@@ -53,7 +58,7 @@ let usecase =
     validate1
     >=> validate2
     >=> validate3
-    >=> switch canonicalizeEmail
+    >> map canonicalizeEmail
 
 [<EntryPoint>]
 let main argv =
