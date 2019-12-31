@@ -17,6 +17,10 @@ let (>>=) twoTrackInput switchFunction =
 let (>=>) switch1 switch2 =
     switch1 >> (bind switch2)
 
+// convert normal function to a switch function
+let switch f x =
+    f x |> Success
+
 type Request = {name: string; email: string}
 
 let validate1 input =
@@ -42,29 +46,29 @@ let combinedValidation =
     >=> validate2
     >=> validate3
 
+let canonicalizeEmail input =
+    { input with email = input.email.Trim().ToLower() }
+
+let usecase =
+    validate1
+    >=> validate2
+    >=> validate3
+    >=> switch canonicalizeEmail
+
 [<EntryPoint>]
 let main argv =
     printfn "Hello World from F#!"
 
-    // test 1
-    let input1 = {name=""; email=""}
-    combinedValidation input1 
-    |> printfn "Result1=%A"
+    let goodInput = {name="Alice"; email="UPPERCASE "}
+    usecase goodInput
+    |> printfn "Canonicalize Good Result = %A"
 
-    // ==> Result1=Failure "Name must not be blank"
+    //Canonicalize Good Result = Success {name = "Alice"; email = "uppercase";}
 
-    // test 2
-    let input2 = {name="Alice"; email=""}
-    combinedValidation input2
-    |> printfn "Result2=%A"
+    let badInput = {name=""; email="UPPERCASE "}
+    usecase badInput
+    |> printfn "Canonicalize Bad Result = %A"
 
-    // ==> Result2=Failure "Email must not be blank"
-
-    // test 3
-    let input3 = {name="Alice"; email="good"}
-    combinedValidation input3
-    |> printfn "Result3=%A"
-
-    // ==> Result3=Success {name = "Alice"; email = "good";}
+    //Canonicalize Bad Result = Failure "Name must not be blank"
 
     0 // return an integer exit code
