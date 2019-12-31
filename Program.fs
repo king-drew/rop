@@ -47,6 +47,19 @@ let doubleMap successFunc failureFunc twoTrackInput =
 let map successFunc =
     doubleMap successFunc id
 
+let plus addSuccess addFailure switch1 switch2 x =
+    match (switch1 x), (switch2 x) with
+    | Success s1, Success s2 -> Success (addSuccess s1 s2)
+    | Failure f1, Success _ -> Failure f1
+    | Success _, Failure f2 -> Failure f2
+    | Failure f1, Failure f2 -> Failure (addFailure f1 f2)
+
+let (&&&) v1 v2 =
+    let addSuccess r1 r2 = r1 // return first
+    let addFailure s1 s2 = s1 + "; " + s2 // concat errors
+    plus addSuccess addFailure v1 v2
+
+
 type Request = {name: string; email: string}
 
 let validate1 input =
@@ -69,8 +82,8 @@ let combinedValidationDataOriented x =
 
 let combinedValidation =
     validate1
-    >=> validate2
-    >=> validate3
+    &&& validate2
+    &&& validate3
 
 let canonicalizeEmail input =
     { input with email = input.email.Trim().ToLower() }
@@ -86,29 +99,36 @@ let log twoTrackInput =
     doubleMap success failure twoTrackInput
 
 let usecase =
-    validate1
-    >=> validate2
-    >=> validate3
+    combinedValidation
     >> map canonicalizeEmail
     >=> tryCatch (tee updateDatabase)
-    >> log
 
 [<EntryPoint>]
 let main argv =
     printfn "Hello World from F#!"
 
-    let goodInput = {name="Alice"; email="good"}
-    usecase goodInput
-    |> printfn "Good Result = %A"
+    // test 1
+    let input1 = {name=""; email=""}
+    combinedValidation input1
+    |> printfn "Result1=%A"
+    // ==> Result1=Failure "Name must not be blank; Email must not be blank"
 
-    // DEBUG. Success so far: {name = "Alice"; email = "good";}
-    // Good Result = Success {name = "Alice"; email = "good";}
+    // test 2
+    let input2 = {name="Alice"; email=""}
+    combinedValidation input2 
+    |> printfn "Result2=%A"
+    // ==> Result2=Failure "Email must not be blank"
 
-    let badInput = {name=""; email=""}
-    usecase badInput 
-    |> printfn "Bad Result = %A"
+    // test 3
+    let input3 = {name="Alice"; email="good"}
+    combinedValidation input3 
+    |> printfn "Result3=%A"
+    // ==> Result3=Success {name = "Alice"; email = "good";}
 
-    // ERROR. "Name must not be blank"
-    // Bad Result = Failure "Name must not be blank"
+    // test 4
+    let input4 = {name="Alice"; email="UPPERCASE "}
+    usecase input4
+    |> printfn "Result4=%A"
+    // ==> Result4=Success {name = "Alice"; email = "uppercase";}
 
     0 // return an integer exit code
