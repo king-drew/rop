@@ -14,6 +14,11 @@ let bind switchFn =
 let (>>=) twoTrackInput switchFunction =
     bind switchFunction twoTrackInput
 
+let (>=>) switch1 switch2 x =
+    match switch1 x with
+    | Success s -> switch2 s
+    | Failure f -> Failure f
+
 type Request = {name: string; email: string}
 
 let validate1 input =
@@ -28,10 +33,16 @@ let validate3 input =
     if input.email = "" then Failure "Email must not be blank"
     else Success input
 
+let combinedValidationDataOriented x =
+    x
+    |> validate1
+    >>= validate2
+    >>= validate3
+
 let combinedValidation =
     validate1
-    >> bind validate2
-    >> bind validate3
+    >=> validate2
+    >=> validate3
 
 [<EntryPoint>]
 let main argv =
