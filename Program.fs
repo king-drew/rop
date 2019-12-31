@@ -12,41 +12,48 @@ let succeed x =
 let fail x =
     Failure x
 
-let bind switchFn =
-    function
-    | Success s -> switchFn s
-    | Failure f -> Failure f
-
-let (>>=) twoTrackInput switchFunction =
-    bind switchFunction twoTrackInput
-
-let (>=>) switch1 switch2 =
-    switch1 >> (bind switch2)
-
-// convert normal function to a switch function
-let switch f x =
-    f x |> Success
-
-
-let tee f x =
-    f x |> ignore
-    x
-
-let tryCatch f x =
-    try
-        f x |> Success
-    with
-    | ex -> Failure ex.Message
-
-let doubleMap successFunc failureFunc twoTrackInput =
+// apply either a success func or fialure func
+let either successFunc failureFunc twoTrackInput =
     match twoTrackInput with
-    | Success s -> Success (successFunc s)
-    | Failure f -> Failure (failureFunc f)
+    | Success s -> successFunc s
+    | Failure f -> failureFunc f
 
-// simpler map implementation using doubleMap
-let map successFunc =
-    doubleMap successFunc id
+// convert switch func into a two-track func
+let bind f =
+    either f fail
 
+// pipe a switch func into a two-track func
+let (>>=) x f =
+    bind f x
+
+// compose two switch funcs into a single switch func
+let (>=>) s1 s2 =
+    s1 >> bind s2
+
+// convert one-track function into a switch function
+let switch f x =
+    f x |> succeed
+
+// convert a one-track function into a two-track function
+let map f =
+    either (f >> succeed) fail
+
+// convert dead-end func into a one-track func
+let tee f x =
+    f x; x
+
+// convert one-track func into a switch with exception handling
+let tryCatch f exnHanlder x =
+    try
+        f x |> succeed
+    with
+    | ex -> exnHanlder ex |> fail
+
+// convert two one-track funcs into a single two-track function
+let doubleMap successFunc failureFunc =
+    either (successFunc >> succeed) (failureFunc >> fail)
+
+// add two switch funs in parallel
 let plus addSuccess addFailure switch1 switch2 x =
     match (switch1 x), (switch2 x) with
     | Success s1, Success s2 -> Success (addSuccess s1 s2)
