@@ -14,10 +14,8 @@ let bind switchFn =
 let (>>=) twoTrackInput switchFunction =
     bind switchFunction twoTrackInput
 
-let (>=>) switch1 switch2 x =
-    match switch1 x with
-    | Success s -> switch2 s
-    | Failure f -> Failure f
+let (>=>) switch1 switch2 =
+    switch1 >> (bind switch2)
 
 type Request = {name: string; email: string}
 
