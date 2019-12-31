@@ -6,6 +6,12 @@ type Result<'TSuccess, 'TFailure> =
     | Success of 'TSuccess
     | Failure of 'TFailure
 
+let succeed x =
+    Success x
+
+let fail x =
+    Failure x
+
 let bind switchFn =
     function
     | Success s -> switchFn s
