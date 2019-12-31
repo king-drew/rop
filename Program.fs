@@ -21,10 +21,6 @@ let (>=>) switch1 switch2 =
 let switch f x =
     f x |> Success
 
-let map oneTrackFunc twoTrackInput =
-    match twoTrackInput with
-    | Success s -> Success (oneTrackFunc s)
-    | Failure f -> Failure f
 
 let tee f x =
     f x |> ignore
@@ -35,6 +31,15 @@ let tryCatch f x =
         f x |> Success
     with
     | ex -> Failure ex.Message
+
+let doubleMap successFunc failureFunc twoTrackInput =
+    match twoTrackInput with
+    | Success s -> Success (successFunc s)
+    | Failure f -> Failure (failureFunc f)
+
+// simpler map implementation using doubleMap
+let map successFunc =
+    doubleMap successFunc id
 
 type Request = {name: string; email: string}
 
@@ -69,28 +74,35 @@ let updateDatabase input =
     // printfn "update DB"
     ()
 
+let log twoTrackInput =
+    let success x = printfn "DEBUG. Success so far: %A" x; x
+    let failure x = printfn "ERROR. %A" x; x
+    doubleMap success failure twoTrackInput
+
 let usecase =
     validate1
     >=> validate2
     >=> validate3
     >> map canonicalizeEmail
-    // switch composition style with tryCatch instead of switch
     >=> tryCatch (tee updateDatabase)
+    >> log
 
 [<EntryPoint>]
 let main argv =
     printfn "Hello World from F#!"
 
-    let goodInput = {name="Alice"; email="UPPERCASE "}
+    let goodInput = {name="Alice"; email="good"}
     usecase goodInput
-    |> printfn "Canonicalize Good Result = %A"
+    |> printfn "Good Result = %A"
 
-    //Canonicalize Good Result = Success {name = "Alice"; email = "uppercase";}
+    // DEBUG. Success so far: {name = "Alice"; email = "good";}
+    // Good Result = Success {name = "Alice"; email = "good";}
 
-    let badInput = {name=""; email="UPPERCASE "}
-    usecase badInput
-    |> printfn "Canonicalize Bad Result = %A"
+    let badInput = {name=""; email=""}
+    usecase badInput 
+    |> printfn "Bad Result = %A"
 
-    //Canonicalize Bad Result = Failure "Name must not be blank"
+    // ERROR. "Name must not be blank"
+    // Bad Result = Failure "Name must not be blank"
 
     0 // return an integer exit code
