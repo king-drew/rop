@@ -26,6 +26,10 @@ let map oneTrackFunc twoTrackInput =
     | Success s -> Success (oneTrackFunc s)
     | Failure f -> Failure f
 
+let tee f x =
+    f x |> ignore
+    x
+
 type Request = {name: string; email: string}
 
 let validate1 input =
@@ -54,11 +58,20 @@ let combinedValidation =
 let canonicalizeEmail input =
     { input with email = input.email.Trim().ToLower() }
 
+// dummy dead-end function
+let updateDatabase input =
+    // printfn "update DB"
+    ()
+
 let usecase =
     validate1
     >=> validate2
     >=> validate3
     >> map canonicalizeEmail
+    // switch composition style
+    >=> switch (tee updateDatabase)
+    // or two-track style using normal composition
+    >> map (tee updateDatabase)
 
 [<EntryPoint>]
 let main argv =
