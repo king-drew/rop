@@ -30,6 +30,12 @@ let tee f x =
     f x |> ignore
     x
 
+let tryCatch f x =
+    try
+        f x |> Success
+    with
+    | ex -> Failure ex.Message
+
 type Request = {name: string; email: string}
 
 let validate1 input =
@@ -68,10 +74,8 @@ let usecase =
     >=> validate2
     >=> validate3
     >> map canonicalizeEmail
-    // switch composition style
-    >=> switch (tee updateDatabase)
-    // or two-track style using normal composition
-    >> map (tee updateDatabase)
+    // switch composition style with tryCatch instead of switch
+    >=> tryCatch (tee updateDatabase)
 
 [<EntryPoint>]
 let main argv =
