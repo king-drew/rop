@@ -71,6 +71,16 @@ let (|||) v1 v2 =
     let addFailure s1 s2 = s1 + "; " + s2 // concat errors
     thisOrThat addSuccess addFailure v1 v2
 
+type Config = {debug:bool}
+
+let debugLogger twoTrackInput =
+    let success x = printfn "DEBUG. Success so far: %A" x; x
+    let failure = id // don't log here
+    doubleMap success failure twoTrackInput
+
+let injectableLogger config =
+    if config.debug then debugLogger else id
+
 
 type Request = {name: string; email: string}
 
@@ -94,8 +104,8 @@ let combinedValidationDataOriented x =
 
 let combinedValidation =
     validate1
-    ||| validate2
-    ||| validate3
+    &&& validate2
+    &&& validate3
 
 let canonicalizeEmail input =
     { input with email = input.email.Trim().ToLower() }
@@ -110,37 +120,30 @@ let log twoTrackInput =
     let failure x = printfn "ERROR. %A" x; x
     doubleMap success failure twoTrackInput
 
-let usecase =
+let usecase config =
     combinedValidation
     >> map canonicalizeEmail
-    >=> tryCatch (tee updateDatabase)
+    >> injectableLogger config
 
 [<EntryPoint>]
 let main argv =
     printfn "Hello World from F#!"
 
-    // test 1
-    let input1 = {name=""; email=""}
-    combinedValidation input1
-    |> printfn "Result1=%A"
-    // ==> Result1=Failure "Name must not be blank; Email must not be blank"
+    let input = {name="Alice"; email="good"}
 
-    // test 2
-    let input2 = {name="Alice"; email=""}
-    combinedValidation input2 
-    |> printfn "Result2=%A"
-    // ==> Result2=Failure "Email must not be blank"
+    let releaseConfig = {debug=false}
+    input 
+    |> usecase releaseConfig 
+    |> ignore
 
-    // test 3
-    let input3 = {name="Alice"; email="good"}
-    combinedValidation input3 
-    |> printfn "Result3=%A"
-    // ==> Result3=Success {name = "Alice"; email = "good";}
+    // no output
 
-    // test 4
-    let input4 = {name="Alice"; email="UPPERCASE "}
-    usecase input4
-    |> printfn "Result4=%A"
-    // ==> Result4=Success {name = "Alice"; email = "uppercase";}
+    let debugConfig = {debug=true}
+    input 
+    |> usecase debugConfig 
+    |> ignore
+
+    // debug output
+    // DEBUG. Success so far: {name = "Alice"; email = "good";}
 
     0 // return an integer exit code
