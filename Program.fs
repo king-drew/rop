@@ -59,6 +59,18 @@ let (&&&) v1 v2 =
     let addFailure s1 s2 = s1 + "; " + s2 // concat errors
     plus addSuccess addFailure v1 v2
 
+let thisOrThat addSuccess addFailure switch1 switch2 x =
+    match (switch1 x), (switch2 x) with
+    | Success s1, Success s2 -> succeed (addSuccess s1 s2)
+    | Failure _, Success s2 -> succeed s2
+    | Success s1, Failure _ -> succeed s1
+    | Failure f1, Failure f2 -> Failure (addFailure f1 f2)
+
+let (|||) v1 v2 =
+    let addSuccess r1 r2 = r1 // return first
+    let addFailure s1 s2 = s1 + "; " + s2 // concat errors
+    thisOrThat addSuccess addFailure v1 v2
+
 
 type Request = {name: string; email: string}
 
@@ -82,8 +94,8 @@ let combinedValidationDataOriented x =
 
 let combinedValidation =
     validate1
-    &&& validate2
-    &&& validate3
+    ||| validate2
+    ||| validate3
 
 let canonicalizeEmail input =
     { input with email = input.email.Trim().ToLower() }
