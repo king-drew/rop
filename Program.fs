@@ -122,35 +122,46 @@ let updateDatabase input =
     // printfn "update DB"
     ()
 
+let updateDatabaseStep =
+    tryCatch (tee updateDatabase) (fun ex -> ex.Message)
+
 let log twoTrackInput =
     let success x = printfn "DEBUG. Success so far: %A" x; x
     let failure x = printfn "ERROR. %A" x; x
     doubleMap success failure twoTrackInput
 
-let usecase config =
+let usecase =
     combinedValidation
     >> map canonicalizeEmail
-    >> injectableLogger config
+    >> bind updateDatabaseStep
+    >> log
 
 [<EntryPoint>]
 let main argv =
     printfn "Hello World from F#!"
 
-    let input = {name="Alice"; email="good"}
+    // test 1
+    let input1 = {name=""; email=""}
+    usecase input1 
+    |> printfn "Result1=%A"
+    // ==> Result1=Failure "Name must not be blank; Email must not be blank"
 
-    let releaseConfig = {debug=false}
-    input 
-    |> usecase releaseConfig 
-    |> ignore
+    // test 2
+    let input2 = {name="Alice"; email=""}
+    usecase input2
+    |> printfn "Result2=%A"
+    // ==> Result2=Failure "Email must not be blank"
 
-    // no output
+    // test 3
+    let input3 = {name="Alice"; email="good"}
+    usecase input3 
+    |> printfn "Result3=%A"
+    // ==> Result3=Success {name = "Alice"; email = "good";}
 
-    let debugConfig = {debug=true}
-    input 
-    |> usecase debugConfig 
-    |> ignore
-
-    // debug output
-    // DEBUG. Success so far: {name = "Alice"; email = "good";}
+    // test 4
+    let input4 = {name="Alice"; email="UPPERCASE "}
+    usecase input4
+    |> printfn "Result4=%A"
+    // ==> Result4=Success {name = "Alice"; email = "uppercase";}
 
     0 // return an integer exit code
